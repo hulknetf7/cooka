@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Shaka Player - Star Sports 1 HD</title>
+    <meta name="referrer" content="no-referrer">
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/shaka-player@5.0.4/dist/shaka-player.ui.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@5.0.4/dist/controls.min.css">
+    <style>
+        body { margin: 0; background: #000; width: 100vw; height: 100vh; overflow: hidden; }
+        .shaka-video-container { width: 100%; height: 100%; }
+        video { width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+
+<div id="shakaplayer" class="shaka-video-container">
+    <video autoplay id="video" poster="https://img.media.jio.com/tvpimages/76/32/301981_1749665664018_l_medium.jpg"></video>
+</div>
+
+<script>
+async function initPlayer() {
+    const video = document.getElementById('video');
+    const container = document.getElementById('shakaplayer');
+    const player = new shaka.Player();
+    const ui = new shaka.ui.Overlay(player, container, video);
+
+    const streamData = {
+        url: "https://jiotvmblive.cdn.jio.com//bpk-tv/Star_Sports_HD1_BTS/output/index.mpd",
+        cookie: "__hdnea__=st=1774866416~exp=1774952816~acl=/*~hmac=965e1a550b5e18fb744cd0de1d8ff04404b14c26c3a9457f82baa3fc37a5d3fe",
+        keys: { "965dc2ddb1d85138ad787999a7f30ca5": "859695076e67fe961836b564db6d689c" }
+    };
+
+    // --- NETWORK FILTER ---
+    player.getNetworkingEngine().registerRequestFilter((type, request) => {
+        // 1. Cookie ko URL parameters mein add karna (Better for Manifest/Segments)
+        const separator = request.uris[0].includes('?') ? '&' : '?';
+        request.uris[0] += separator + streamData.cookie;
+
+        // 2. Headers add karna (Agar browser allow kare)
+        request.headers['Cookie'] = streamData.cookie;
+    });
+
+    player.configure({
+        drm: { clearKeys: streamData.keys },
+        manifest: { 
+            dash: { ignoreMinBufferTime: true },
+            retryParameters: { maxAttempts: 5 } 
+        },
+        streaming: {
+            bufferingGoal: 30,
+            rebufferingGoal: 10
+        }
+    });
+
+    try {
+        // Final URL with Cookie
+        const finalUrl = streamData.url + "?" + streamData.cookie;
+        await player.load(finalUrl);
+        console.log("Playing...");
+    } catch (e) {
+        console.error("Error code", e.code, "object", e);
+        
+        // Agar fir bhi na chale, toh Error 1001/403 check karein
+        if(e.code == 1001) alert("CORS Error: Browser ne request block kar di hai.");
+    }
+}
+
+document.addEventListener('shaka-ui-loaded', initPlayer);
+document.addEventListener('DOMContentLoaded', () => { if(!window.shaka) initPlayer(); });
+</script>
+</body>
+</html>
